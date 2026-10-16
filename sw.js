@@ -1,9 +1,9 @@
 // Offline support: cache the app shell, network-first so updates show up.
-const CACHE = 'calorie-tracker-v1';
+const CACHE = 'calorie-tracker-v2';
 const SHELL = [
   './', 'index.html', 'css/styles.css', 'icon.svg', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/foods.js', 'js/nutrition.js', 'js/dates.js',
-  'js/charts.js', 'js/openfoodfacts.js',
+  'js/charts.js', 'js/openfoodfacts.js', 'js/native.js', 'apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (e) => {

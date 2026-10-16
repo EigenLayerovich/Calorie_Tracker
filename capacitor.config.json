@@ -1,0 +1,10 @@
+{
+  "appId": "com.eigenlayerovich.calorietracker",
+  "appName": "Calorie Tracker",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b6bcb",
+    "scrollEnabled": true
+  }
+}

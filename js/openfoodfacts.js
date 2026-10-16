@@ -1,6 +1,22 @@
 // Online food search via the Open Food Facts public API (no key needed).
 
 const BASE = 'https://world.openfoodfacts.org';
+const SEARCH = 'https://search.openfoodfacts.org/search';
+
+async function fetchJSON(url, { signal } = {}) {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return res.json();
+}
+
+let getJSON = fetchJSON;
+let nativeTransport = false;
+
+/** Swap the HTTP transport (the iOS app uses native HTTP, which isn't subject to CORS). */
+export function setTransport(fn, { native = false } = {}) {
+  getJSON = fn;
+  nativeTransport = native;
+}
 const FIELDS = 'code,product_name,brands,serving_size,serving_quantity,nutriments';
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -43,22 +59,22 @@ export function mapProduct(p) {
 
 /**
  * Full-text search. Open Food Facts' search endpoints don't reliably send CORS
- * headers, so we first try the same-origin proxy in server.js (`npm start`),
- * then fall back to calling the public API directly (works on static hosts
- * whenever OFF allows it).
+ * headers. The iOS app calls them directly over native HTTP; in a browser we
+ * first try the same-origin proxy in server.js (`npm start`), then the public
+ * API directly (works on static hosts whenever OFF allows it).
  */
 export async function searchOnline(query, { signal, pageSize = 25 } = {}) {
   const q = encodeURIComponent(query);
-  const attempts = [
-    `api/search?q=${q}&page_size=${pageSize}`,
-    `${BASE}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=${pageSize}&fields=${FIELDS}`,
-  ];
+  const attempts = nativeTransport
+    ? [`${SEARCH}?q=${q}&page_size=${pageSize}&fields=${FIELDS}`]
+    : [
+      `api/search?q=${q}&page_size=${pageSize}`,
+      `${BASE}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=${pageSize}&fields=${FIELDS}`,
+    ];
   let lastError;
   for (const url of attempts) {
     try {
-      const res = await fetch(url, { signal });
-      if (!res.ok) throw new Error(`Search failed (${res.status})`);
-      const data = await res.json();
+      const data = await getJSON(url, { signal });
       return (data.products ?? data.hits ?? []).map(mapProduct).filter(Boolean);
     } catch (err) {
       if (err.name === 'AbortError') throw err;
@@ -71,9 +87,14 @@ export async function searchOnline(query, { signal, pageSize = 25 } = {}) {
 export async function lookupBarcode(code, { signal } = {}) {
   const clean = String(code).replace(/\D/g, '');
   if (!clean) throw new Error('Enter a numeric barcode.');
-  const res = await fetch(`${BASE}/api/v2/product/${clean}.json?fields=${FIELDS}`, { signal });
-  if (!res.ok) throw new Error(`Lookup failed (${res.status})`);
-  const data = await res.json();
+  let data;
+  try {
+    data = await getJSON(`${BASE}/api/v2/product/${clean}.json?fields=${FIELDS}`, { signal });
+  } catch (err) {
+    // OFF answers unknown barcodes with a 404.
+    if (/\(404\)/.test(err.message)) return null;
+    throw err;
+  }
   if (data.status !== 1) return null;
   return mapProduct({ code: clean, ...data.product });
 }

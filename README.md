@@ -31,13 +31,68 @@ No accounts, no build step, no dependencies. Your data stays on your device (loc
 npm start          # http://localhost:8080
 ```
 
-Requires Node 18+. `server.js` is a tiny static server that also proxies Open Food Facts
+Requires Node 18+ (run `npm install` once). `server.js` is a tiny static server that also proxies Open Food Facts
 text search (`/api/search`), because that API doesn't send CORS headers to browsers.
 
 You can also host the folder on any static host (GitHub Pages, Netlify, etc.).
 On a static host, barcode lookup works directly. Online text search falls back to calling
 Open Food Facts from the browser, which only works when their API allows it. The built-in
 database and custom foods always work.
+
+## iOS app / TestFlight
+
+The `ios/` folder is a native Xcode project ([Capacitor](https://capacitorjs.com) 8) that
+wraps the web app. Inside the app:
+
+- Data is saved to a file in the app's private storage, so iOS can't purge it the way it
+  can purge web storage.
+- Online food search uses native HTTP, so it works without the proxy server.
+- *Export backup* opens the iOS share sheet (save to Files, AirDrop, etc.).
+- It has a proper app icon and launch screen, safe-area support for the notch and home
+  indicator, and runs on iOS 15+ (iPhone and iPad).
+
+After changing any web code, run `npm run ios:sync` to copy it into the iOS project.
+
+You need an [Apple Developer Program](https://developer.apple.com/programs/) membership
+and an app record in [App Store Connect](https://appstoreconnect.apple.com)
+(*Apps → + → New App*) with the bundle ID `com.eigenlayerovich.calorietracker`, or your
+own ID set in `capacitor.config.json` and in Xcode.
+
+### Option A: from a Mac with Xcode 16+
+
+```bash
+npm install
+npm run ios:sync
+npm run ios:open        # opens ios/App/App.xcodeproj in Xcode
+```
+
+1. In Xcode, select the **App** target → *Signing & Capabilities* → pick your **Team**.
+2. To try it first, choose a simulator or your iPhone and press ▶︎ Run.
+3. Choose **Any iOS Device (arm64)** as the destination, then **Product → Archive**.
+4. In the Organizer: **Distribute App → TestFlight & App Store → Distribute**.
+5. After processing (~10–30 min) the build appears under *TestFlight* in App Store Connect.
+   Add yourself as an internal tester and install it with the TestFlight app.
+
+Increase the build number (*General → Identity → Build*) for every upload.
+
+### Option B: no Mac, using GitHub Actions
+
+`.github/workflows/ios-testflight.yml` builds on a GitHub macOS runner and uploads to
+TestFlight. Signing is automatic (Apple manages the certificate). Set these repository
+secrets (*Settings → Secrets and variables → Actions*):
+
+| Secret | Where to find it |
+| --- | --- |
+| `APPLE_TEAM_ID` | developer.apple.com → Account → Membership details |
+| `ASC_KEY_ID` | App Store Connect → Users and Access → Integrations → App Store Connect API → create a key with **Admin** access |
+| `ASC_ISSUER_ID` | Shown at the top of that same page |
+| `ASC_API_KEY_P8` | Full contents of the downloaded `AuthKey_XXXX.p8` file |
+
+Then go to *Actions → iOS TestFlight → Run workflow*. The build number comes from the
+workflow run number, so each run uploads a new build.
+
+Internal testers (up to 100 people on your App Store Connect team) need no review.
+External testers need a short Beta App Review first.
 
 ## Tests
 
@@ -60,8 +115,13 @@ js/foods.js           Built-in food and exercise database, search
 js/openfoodfacts.js   Online search and barcode lookup
 js/charts.js          SVG bar and line charts
 js/dates.js           Date helpers
-sw.js                 Service worker (offline)
+js/native.js          iOS integration (file storage, native HTTP, share sheet)
+sw.js                 Service worker (offline, web only)
 server.js             Dev server + search proxy
+scripts/build.js      Copies the web app into www/ for Capacitor
+scripts/ios-assets.cjs  Renders the iOS icon and splash images
+capacitor.config.json Capacitor (iOS wrapper) config
+ios/                  Xcode project
 tests/                Unit tests
 ```
 

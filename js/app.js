@@ -8,8 +8,10 @@ import {
   dayTotals, entryNutrients, exerciseCalories, remainingCalories,
   kgToLb, lbToKg, cmToIn, inToCm,
 } from './nutrition.js';
+import { isNative, createPlatformStorage, setupNetworking, saveFile } from './native.js';
 
-const store = createStore(window.localStorage);
+await setupNetworking();
+const store = createStore(await createPlatformStorage());
 const ui = { view: 'diary', date: toKey() };
 const $ = (sel, root = document) => root.querySelector(sel);
 const main = $('#main');
@@ -653,7 +655,7 @@ function renderGoals() {
 
     <section class="card">
       <h3>Your data</h3>
-      <p class="hint">Data lives in this browser only. Export a backup to move it to another device.</p>
+      <p class="hint">Data lives on this ${isNative ? 'device' : 'browser'} only. Export a backup to move it to another device.</p>
       <div class="actions left">
         <button class="btn secondary" id="export">Export backup</button>
         <label class="btn secondary file">Import backup<input type="file" id="import" accept="application/json,.json" hidden></label>
@@ -710,13 +712,12 @@ function renderGoals() {
     toast('Goals saved');
   });
 
-  $('#export').addEventListener('click', () => {
-    const blob = new Blob([store.exportJSON()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `calorie-tracker-backup-${toKey()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('#export').addEventListener('click', async () => {
+    try {
+      await saveFile(`calorie-tracker-backup-${toKey()}.json`, store.exportJSON());
+    } catch (err) {
+      if (!/cancel/i.test(err?.message ?? '')) toast('Could not export the backup');
+    }
   });
   $('#import').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -741,6 +742,8 @@ function renderGoals() {
 if (!store.state.onboarded) ui.view = 'goals';
 render();
 
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+if (isNative) document.documentElement.classList.add('native');
+
+if (!isNative && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
