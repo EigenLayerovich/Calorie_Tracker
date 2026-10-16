@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Track calories, macros, exercise, water and weight.">
+  <meta name="theme-color" content="#0b6bcb">
+  <title>Calorie Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icon.svg" alt="" width="28" height="28"> Calorie Tracker</div>
+    <nav class="tabs" aria-label="Main">
+      <button data-view="diary">Diary</button>
+      <button data-view="progress">Progress</button>
+      <button data-view="foods">My Foods</button>
+      <button data-view="goals">Goals</button>
+    </nav>
+  </header>
+  <main id="main" class="container"></main>
+  <dialog id="modal" aria-label="Dialog"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
